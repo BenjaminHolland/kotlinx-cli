@@ -176,7 +176,7 @@ open class ArgParser(
      */
     private var usedSubcommand: Subcommand? = null
 
-    internal var outputAndTerminate: (message: String, exitCode: Int) -> Nothing = { message, exitCode ->
+    protected var outputAndTerminate: (message: String, exitCode: Int) -> Nothing = { message, exitCode ->
         println(message)
         exitProcess(exitCode)
     }
@@ -352,7 +352,7 @@ open class ArgParser(
      *
      * @param message error message.
      */
-    private fun printError(message: String): Nothing {
+    protected open fun onError(message: String): Nothing {
         outputAndTerminate("$message\n${makeUsage()}", 127)
     }
 
@@ -384,7 +384,7 @@ open class ArgParser(
         if (!saveAsArg(arg, argumentsQueue)) {
             usedSubcommand?.let {
                 (if (treatAsOption) subcommandsOptions else subcommandsArguments).add(arg)
-            } ?: printError("Too many arguments! Couldn't process argument $arg!")
+            } ?: onError("Too many arguments! Couldn't process argument $arg!")
         }
     }
 
@@ -464,7 +464,7 @@ open class ArgParser(
                 saveAsOption(argValue, argIterator.next())
             } else {
                 // An error, option with value without value.
-                printError("No value for ${argValue.descriptor.textDescription}")
+                onError("No value for ${argValue.descriptor.textDescription}")
             }
         } else {
             saveOptionWithoutParameter(argValue)
@@ -501,13 +501,13 @@ open class ArgParser(
                 for (opt in otherBooleanOptions) {
                     shortNames["$opt"]?.let {
                         if (it.descriptor.type.hasParameter) {
-                            printError(
+                            onError(
                                 "Option $optionShortFromPrefix$opt can't be used in option combination $candidate, " +
                                         "because parameter value of type ${it.descriptor.type.description} should be " +
                                         "provided for current option."
                             )
                         }
-                    }?: printError("Unknown option $optionShortFromPrefix$opt in option combination $candidate.")
+                    }?: onError("Unknown option $optionShortFromPrefix$opt in option combination $candidate.")
 
                     saveOptionWithoutParameter(shortNames["$opt"]!!)
                 }
@@ -621,7 +621,7 @@ open class ArgParser(
                                 usedSubcommand?.let { subcommandsOptions.add(arg) } ?: run {
                                     // Try save as argument.
                                     if (!saveAsArg(arg, argumentsQueue)) {
-                                        printError("Unknown option $arg")
+                                        onError("Unknown option $arg")
                                     }
                                 }
                             }
@@ -644,7 +644,7 @@ open class ArgParser(
                     value.addDefaultValue()
                 }
                 if (value.valueOrigin != ValueOrigin.SET_BY_USER && value.descriptor.required) {
-                    printError("Value for ${value.descriptor.textDescription} should be always provided in command line.")
+                    onError("Value for ${value.descriptor.textDescription} should be always provided in command line.")
                 }
             }
             // Parse arguments for subcommand.
@@ -660,7 +660,7 @@ open class ArgParser(
                 return parsingState!!
             }
         } catch (exception: ParsingException) {
-            printError(exception.message!!)
+            onError(exception.message!!)
         }
         parsingState = ArgParserResult(programName)
         return parsingState!!
